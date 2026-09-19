@@ -32,6 +32,7 @@ global.activeSpamIntervals = global.activeSpamIntervals || [];
 const chatGroupsFile = path.join(__dirname, 'chatGroups.json');
 const messageCountFile = path.join(__dirname, 'messageCount.json');
 const userDataFile = path.join(__dirname, 'userData.json');
+const configFile = path.join(__dirname, 'config.json');
 
 // ================= FILE INIT =================
 if (!fs.existsSync(messageCountFile)) fs.writeFileSync(messageCountFile, JSON.stringify({}), 'utf8');
@@ -42,6 +43,16 @@ let chatGroups = JSON.parse(fs.readFileSync(chatGroupsFile, 'utf8'));
 let gbanList = [];
 let globalHandleButton = []; 
 global.globalHandleReply = []; 
+
+// ================= HELPER: GET LATEST CONFIG =================
+function getLatestConfig() {
+    try {
+        delete require.cache[require.resolve(configFile)];
+        return require('./config.json');
+    } catch {
+        return config;
+    }
+}
 
 // ================= BOT TOKEN CHECK =================
 const botToken = process.env.TELEGRAM_BOT_TOKEN || config.token;
@@ -55,7 +66,6 @@ const bot = new TelegramBot(botToken, { polling: true });
 
 const commands = [];
 const events = [];
-let adminOnlyMode = config.admin_only_mode || false;
 const cooldowns = new Map();
 
 // ================= HELPER: ESCAPE REGEX PREFIX =================
@@ -78,7 +88,8 @@ async function showRemoteBotArt() {
         const res = await axios.get('https://raw.githubusercontent.com/JUBAED-AHMED-JOY/Joy/main/notification.txt', { timeout: 5000 });
         logger(res.data);
     } catch (err) {
-        logger(` ${config.bot_name || 'JOY BOT'} started.`);
+        const currentConfig = getLatestConfig();
+        logger(` ${currentConfig.bot_name || 'JOY BOT'} started.`);
     }
 }
 
@@ -198,14 +209,19 @@ async function isUserAdmin(bot, chatId, userId) {
 async function executeCommand(bot, command, msg, match) {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
+    const currentConfig = getLatestConfig();
 
     try {
         if (gbanList.includes(userId.toString())) return bot.sendMessage(chatId, ' You are globally banned.');
 
         const isAdmin = await isUserAdmin(bot, chatId, userId);
-        const isBotAdmin = userId.toString() === (config.owner_id || '').toString();
+        const isBotAdmin = userId.toString() === (currentConfig.owner_id || '').toString();
 
-        if (adminOnlyMode && !isBotAdmin) return bot.sendMessage(chatId, ' Bot is in admin-only mode.');
+        // 🔒 ADMIN ONLY MODE CHECK
+        if (currentConfig.admin_only_mode && !isBotAdmin) {
+            return bot.sendMessage(chatId, '🔒 Bot is currently in Admin-Only mode. Only the bot owner can use commands.');
+        }
+
         if (command.config.role === 2 && !isBotAdmin) return bot.sendMessage(chatId, ' Bot admin only command.');
         if (command.config.role === 1 && !isAdmin && !isBotAdmin) return bot.sendMessage(chatId, ' Group admin only command.');
 
@@ -232,7 +248,7 @@ async function executeCommand(bot, command, msg, match) {
             userId,
             msg,
             api,
-            config,
+            config: currentConfig,
             commands,
             message: { reply: t => bot.sendMessage(chatId, t, { reply_to_message_id: msg.message_id }) },
             event: {
@@ -256,6 +272,8 @@ bot.on('message', async (msg) => {
 
     if (!userId) return;
 
+    const currentConfig = getLatestConfig();
+
     // Message count tracking
     const data = JSON.parse(fs.readFileSync(messageCountFile));
     if (!data[chatId]) data[chatId] = {};
@@ -276,7 +294,7 @@ bot.on('message', async (msg) => {
             try {
                 const startCommand = require(path.join(__dirname, 'JOY-CMDS', 'cmds', 'start.js'));
                 if (startCommand && startCommand.onStart) {
-                    startCommand.onStart({ bot, chatId, msg, config });
+                    startCommand.onStart({ bot, chatId, msg, config: currentConfig });
                 }
             } catch (err) {}
 
@@ -314,7 +332,7 @@ bot.on('message', async (msg) => {
 
     if (!msg.text) return;
     const text = msg.text.trim();
-    const prefix = config.prefix || '/';
+    const prefix = currentConfig.prefix || '/';
     const escapedPrefix = escapeRegex(prefix);
 
     // ONLY PREFIX HANDLER
@@ -327,7 +345,7 @@ bot.on('message', async (msg) => {
                 args: [],
                 userId,
                 msg,
-                config,
+                config: currentConfig,
                 commands,
                 globalHandleButton
             });
@@ -372,11 +390,12 @@ bot.on('message', async (msg) => {
 (async () => {
     await checkVersion();
     await showRemoteBotArt();
+    const currentConfig = getLatestConfig();
     logger(' Bot started successfully');
     logger(` Commands loaded: ${commands.length}`);
     logger(` Events loaded: ${events.length}`);
-    logger(` Owner: ${config.owner_name}`);
-    logger(` Prefix: ${config.prefix}`);
+    logger(` Owner: ${currentConfig.owner_name}`);
+    logger(` Prefix: ${currentConfig.prefix}`);
 })();
 
 process.on('unhandledRejection', (err) => {
