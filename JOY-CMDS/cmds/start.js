@@ -33,7 +33,7 @@ module.exports = {
             reply_markup: {
                 inline_keyboard: [
                     [
-                        { text: '📜 Help Menu', callback_data: '/help' }
+                        { text: '📜 Help Menu', callback_data: `${prefix}help` }
                     ]
                 ]
             }
