@@ -24,6 +24,7 @@ require('./JOY/utils.js');
 const TelegramAdapter = require('./JOY/telegram-adapter.js');
 const checkVersion = require('./JOY/update.js');
 require('./JOY/concole.js');
+const { getInvalidCmdMsg } = require('./JOY/joy.js'); // 🌿 Custom Invalid Message Import
 
 // ================= GLOBAL SPAM/MURGI TIMERS TRACKER =================
 global.activeSpamIntervals = global.activeSpamIntervals || [];
@@ -374,13 +375,13 @@ bot.on('message', async (msg) => {
         }
     }
 
-    // STYLISH INVALID COMMAND DETECTOR
+    // STYLISH INVALID COMMAND DETECTOR (JOY/joy.js INTEGRATION)
     if (!isCommand && text.startsWith(prefix) && text !== prefix) {
         const parts = text.slice(prefix.length).trim().split(/\s+/);
         inputCmdName = parts[0];
 
         if (inputCmdName) {
-            const notFoundMsg = `❌ Invalid Command: ${prefix}${inputCmdName}\nUse ${prefix}help to see all available commands.`;
+            const notFoundMsg = getInvalidCmdMsg(prefix, inputCmdName);
             bot.sendMessage(chatId, notFoundMsg, { reply_to_message_id: msg.message_id });
         }
     }
