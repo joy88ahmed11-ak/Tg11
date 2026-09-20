@@ -3,48 +3,52 @@ const axios = require('axios');
 module.exports = {
     config: {
         name: "bd",
-        version: "3.0.0",
+        version: "5.0.0",
         role: 0,
         author: "Joy Ahmed",
         cooldown: 5,
-        description: "Send BD Video with HTTPS Mini App Player",
+        description: "Fetch BD video, screenshot, and dynamic Mini App Webview",
         usePrefix: true
     },
 
     onStart: async function ({ bot, chatId, msg }) {
-        const apiUrl = "https://nayan-primehub.vercel.app/bd"; // HTTPS লিঙ্ক
+        const apiUrl = "http://nayan-primehub.vercel.app/bd";
 
-        const loadingMsg = await bot.sendMessage(chatId, "⏳ <i>ডাটা প্রসেস করা হচ্ছে...</i>", {
+        const loadingMsg = await bot.sendMessage(chatId, "⏳ <i>ভিডিও প্রসেস করা হচ্ছে, অপেক্ষা করুন...</i>", {
             parse_mode: 'HTML',
             reply_to_message_id: msg.message_id
         });
 
         try {
+            // API Scraping / Fetching
             const response = await axios.get(apiUrl, { timeout: 10000 });
-            let rawUrl = response.data.url || response.data.video || response.data.link || response.data.data;
-            let rawThumb = response.data.cover || response.data.image || response.data.thumbnail || response.data.ss;
+            const data = response.data || {};
 
-            if (!rawUrl) {
-                return bot.editMessageText("❌ <i>ভিডিও লিংক পাওয়া যায়নি!</i>", {
+            // Extract Video Details
+            const videoUrl = data.url || data.video || data.link || data.cp;
+            const videoTitle = data.title || data.name || "Bangladeshi Video";
+            const thumbnailUrl = data.cp || data.cover || data.image || data.thumbnail || data.ss;
+
+            if (!videoUrl) {
+                return bot.editMessageText("❌ <i>API থেকে কোনো ভিডিও লিঙ্ক পাওয়া যায়নি!</i>", {
                     chat_id: chatId,
                     message_id: loadingMsg.message_id,
                     parse_mode: 'HTML'
                 });
             }
 
-            // HTTP কে HTTPS এ কনভার্ট করা (টেলিগ্রাম Mini App সিকিউরিটির জন্য)
-            const videoUrl = rawUrl.replace(/^http:\/\//i, 'https://');
-            const thumbnailUrl = rawThumb ? rawThumb.replace(/^http:\/\//i, 'https://') : null;
-
-            // HTML Video Player URL (ভিডিও দেখার জন্য ডাইরেক্ট HTML লিঙ্ক)
-            const htmlPlayerUrl = videoUrl; 
+            // HTML Web App Player Builder (To avoid ETELEGRAM 400 Bad Request)
+            const htmlContent = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;}video{width:100%;max-height:100vh;}</style></head><body><video controls autoplay loop src="${videoUrl}"></video></body></html>`;
+            
+            // Convert HTML code to HTTPS Data URI Web App Link
+            const webAppUrl = `https://htmlpreview.github.io/?data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
 
             const replyMarkup = {
                 inline_keyboard: [
                     [
                         {
                             text: "🚀 Open Mini App Player",
-                            web_app: { url: htmlPlayerUrl } // HTTPS নিশ্চিত করা হয়েছে
+                            web_app: { url: webAppUrl }
                         }
                     ],
                     [
@@ -59,11 +63,12 @@ module.exports = {
             const captionText = 
 `🇧🇩 <b><u>𝙱𝙰𝙽𝙶𝙻𝙰𝙳𝙴𝚂𝙷𝙸  𝚅𝙸𝙳𝙴𝙾</u></b>
 
-🔗 <b>𝚅𝚒𝚍𝚎𝚘 𝙻𝚒𝚗𝚔:</b> <code>${videoUrl}</code>
+📝 <b>𝚃𝚒𝚝𝚕𝚎:</b> <i>${videoTitle}</i>
+🔗 <b>𝙻𝚒𝚗𝚔:</b> <code>${videoUrl}</code>
 👑 <b>𝙾𝚯𝚗𝚎𝚛:</b>  <b><u>𝙹𝚘𝚢 𝙰𝚑𝚖𝚎𝚍</u></b>`;
 
-            // যদি স্ক্রিনশট/থার্ম্বনেইল থাকে
-            if (thumbnailUrl && thumbnailUrl.startsWith('https')) {
+            // ১. স্ক্রিনশট / থাম্বনেইল সাপোর্ট
+            if (thumbnailUrl && typeof thumbnailUrl === 'string' && thumbnailUrl.startsWith('http')) {
                 try {
                     await bot.sendPhoto(chatId, thumbnailUrl, {
                         caption: captionText,
@@ -72,12 +77,12 @@ module.exports = {
                         reply_to_message_id: msg.message_id
                     });
                     return await bot.deleteMessage(chatId, loadingMsg.message_id);
-                } catch (e) {
-                    console.error('Photo Error, sending video instead:', e.message);
+                } catch (photoErr) {
+                    console.error('Photo Send Failed:', photoErr.message);
                 }
             }
 
-            // স্ক্রিনশট না থাকলে ভিডিও সেন্ড করবে
+            // ২. ডাইরেক্ট ভিডিও সেন্ড (ভিডিও প্লেয়ার বাটন সহ)
             await bot.sendVideo(chatId, videoUrl, {
                 caption: captionText,
                 parse_mode: 'HTML',
@@ -90,7 +95,7 @@ module.exports = {
         } catch (err) {
             console.error('BD Command Error:', err.message);
 
-            return bot.editMessageText("❌ <i>ভিডিও লোড করতে সমস্যা হয়েছে। লিঙ্কটি HTTPS না হওয়ায় বা সার্ভার সাড়া না দেওয়ায় এমন হতে পারে।</i>", {
+            return bot.editMessageText("❌ <i>ভিডিও লোড করতে সমস্যা হয়েছে! সার্ভার ডাউন অথবা নেটওয়ার্ক সমস্যা।</i>", {
                 chat_id: chatId,
                 message_id: loadingMsg.message_id,
                 parse_mode: 'HTML'
