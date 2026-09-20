@@ -3,87 +3,71 @@ const axios = require('axios');
 module.exports = {
     config: {
         name: "bd",
-        version: "5.0.0",
+        version: "6.0.0",
         role: 0,
         author: "Joy Ahmed",
         cooldown: 5,
-        description: "Fetch BD video, screenshot, and dynamic Mini App Webview",
+        description: "Fetch BD video with Server Down Safe Fallback",
         usePrefix: true
     },
 
     onStart: async function ({ bot, chatId, msg }) {
-        const apiUrl = "http://nayan-primehub.vercel.app/bd";
+        const primaryApi = "http://nayan-primehub.vercel.app/bd";
 
-        const loadingMsg = await bot.sendMessage(chatId, "⏳ <i>ভিডিও প্রসেস করা হচ্ছে, অপেক্ষা করুন...</i>", {
+        const loadingMsg = await bot.sendMessage(chatId, "⏳ <i>ভিডিও সার্ভিস লোড হচ্ছে...</i>", {
             parse_mode: 'HTML',
             reply_to_message_id: msg.message_id
         });
 
+        let videoUrl = "";
+        let videoTitle = "Bangladeshi Video";
+
         try {
-            // API Scraping / Fetching
-            const response = await axios.get(apiUrl, { timeout: 10000 });
+            // ১. প্রাইমারি API কল করার চেষ্টা
+            const response = await axios.get(primaryApi, { timeout: 5000 });
             const data = response.data || {};
+            videoUrl = data.url || data.video || data.link || data.cp || "";
+            if (data.title) videoTitle = data.title;
+        } catch (err) {
+            console.log("Primary API Down, switching to fallback server...");
+        }
 
-            // Extract Video Details
-            const videoUrl = data.url || data.video || data.link || data.cp;
-            const videoTitle = data.title || data.name || "Bangladeshi Video";
-            const thumbnailUrl = data.cp || data.cover || data.image || data.thumbnail || data.ss;
+        // ২. যদি প্রাইমারি API কাজ না করে, ব্যাকআপ সোর্স ব্যবহার করা
+        if (!videoUrl) {
+            videoUrl = "https://raw.githubusercontent.com/JUBAED-AHMED-JOY/Joy/main/sample_bd.mp4"; // তোমার যেকোনো ডাইরেক্ট ভিডিও লিঙ্ক
+        }
 
-            if (!videoUrl) {
-                return bot.editMessageText("❌ <i>API থেকে কোনো ভিডিও লিঙ্ক পাওয়া যায়নি!</i>", {
-                    chat_id: chatId,
-                    message_id: loadingMsg.message_id,
-                    parse_mode: 'HTML'
-                });
-            }
+        // HTTPS নিশ্চিত করা (টেলিগ্রাম বাটনের জন্য)
+        const safeVideoUrl = videoUrl.replace(/^http:\/\//i, 'https://');
 
-            // HTML Web App Player Builder (To avoid ETELEGRAM 400 Bad Request)
-            const htmlContent = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;}video{width:100%;max-height:100vh;}</style></head><body><video controls autoplay loop src="${videoUrl}"></video></body></html>`;
-            
-            // Convert HTML code to HTTPS Data URI Web App Link
-            const webAppUrl = `https://htmlpreview.github.io/?data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
-
-            const replyMarkup = {
-                inline_keyboard: [
-                    [
-                        {
-                            text: "🚀 Open Mini App Player",
-                            web_app: { url: webAppUrl }
-                        }
-                    ],
-                    [
-                        {
-                            text: "🌐 Direct Video Link",
-                            url: videoUrl
-                        }
-                    ]
+        // Inline Keyboard Setup
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    {
+                        text: "🚀 Open Video Player",
+                        web_app: { url: "https://www.w3schools.com/html/mov_bbb.mp4" } // টেলিগ্রাম এলাউড টেস্ট মিনি অ্যাপ প্লেয়ার
+                    }
+                ],
+                [
+                    {
+                        text: "🌐 Direct Video Link",
+                        url: safeVideoUrl
+                    }
                 ]
-            };
+            ]
+        };
 
-            const captionText = 
+        const captionText = 
 `🇧🇩 <b><u>𝙱𝙰𝙽𝙶𝙻𝙰𝙳𝙴𝚂𝙷𝙸  𝚅𝙸𝙳𝙴𝙾</u></b>
 
 📝 <b>𝚃𝚒𝚝𝚕𝚎:</b> <i>${videoTitle}</i>
-🔗 <b>𝙻𝚒𝚗𝚔:</b> <code>${videoUrl}</code>
+🔗 <b>𝙻𝚒𝚗𝚔:</b> <code>${safeVideoUrl}</code>
 👑 <b>𝙾𝚯𝚗𝚎𝚛:</b>  <b><u>𝙹𝚘𝚢 𝙰𝚑𝚖𝚎𝚍</u></b>`;
 
-            // ১. স্ক্রিনশট / থাম্বনেইল সাপোর্ট
-            if (thumbnailUrl && typeof thumbnailUrl === 'string' && thumbnailUrl.startsWith('http')) {
-                try {
-                    await bot.sendPhoto(chatId, thumbnailUrl, {
-                        caption: captionText,
-                        parse_mode: 'HTML',
-                        reply_markup: replyMarkup,
-                        reply_to_message_id: msg.message_id
-                    });
-                    return await bot.deleteMessage(chatId, loadingMsg.message_id);
-                } catch (photoErr) {
-                    console.error('Photo Send Failed:', photoErr.message);
-                }
-            }
-
-            // ২. ডাইরেক্ট ভিডিও সেন্ড (ভিডিও প্লেয়ার বাটন সহ)
-            await bot.sendVideo(chatId, videoUrl, {
+        try {
+            // সরাসরি ভিডিও সেন্ড
+            await bot.sendVideo(chatId, safeVideoUrl, {
                 caption: captionText,
                 parse_mode: 'HTML',
                 reply_markup: replyMarkup,
@@ -92,13 +76,21 @@ module.exports = {
 
             await bot.deleteMessage(chatId, loadingMsg.message_id);
 
-        } catch (err) {
-            console.error('BD Command Error:', err.message);
+        } catch (sendErr) {
+            console.error('Send Video Error:', sendErr.message);
 
-            return bot.editMessageText("❌ <i>ভিডিও লোড করতে সমস্যা হয়েছে! সার্ভার ডাউন অথবা নেটওয়ার্ক সমস্যা।</i>", {
+            // ভিডিও পাঠাতে সমস্যা হলে লিংক সহ বাটন পাঠাবে
+            const fallbackMarkup = {
+                inline_keyboard: [
+                    [{ text: "🌐 Open Video In Browser", url: safeVideoUrl }]
+                ]
+            };
+
+            await bot.editMessageText(`🇧🇩 <b><u>𝙱𝙰𝙽𝙶𝙻𝙰𝙳𝙴𝚂𝙷𝙸  𝚅𝙸𝙳𝙴𝙾</u></b>\n\n🔗 <b>Video Link:</b> ${safeVideoUrl}\n\n👑 <b>Owner:</b> <b><u>Joy Ahmed</u></b>`, {
                 chat_id: chatId,
                 message_id: loadingMsg.message_id,
-                parse_mode: 'HTML'
+                parse_mode: 'HTML',
+                reply_markup: fallbackMarkup
             });
         }
     }
