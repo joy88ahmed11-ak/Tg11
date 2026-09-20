@@ -3,95 +3,94 @@ const axios = require('axios');
 module.exports = {
     config: {
         name: "bd",
-        version: "2.1.0",
+        version: "2.2.0",
         role: 0,
         author: "Joy Ahmed",
         cooldown: 5,
-        description: "Send BD video link with Mini App player and SS",
+        description: "Send BD video link with Mini App player",
         usePrefix: true
     },
 
     onStart: async function ({ bot, chatId, msg }) {
         const apiUrl = "http://nayan-primehub.vercel.app/bd";
 
-        const loadingMsg = await bot.sendMessage(chatId, "⏳ <i>ডাটা লোড হচ্ছে, অপেক্ষা করুন...</i>", {
+        const loadingMsg = await bot.sendMessage(chatId, "⏳ <i>ভিডিও লিংক প্রসেস করা হচ্ছে...</i>", {
             parse_mode: 'HTML',
             reply_to_message_id: msg.message_id
         });
 
         try {
-            const response = await axios.get(apiUrl, { timeout: 10000 });
-            const data = response.data;
+            // API Call with 8 Second Timeout
+            const response = await axios.get(apiUrl, { timeout: 8000 });
+            const data = response.data || {};
 
-            // API থেকে লিংক বের করা
             const videoUrl = data.url || data.video || data.link || data.data;
             const thumbnailUrl = data.cover || data.image || data.thumbnail || data.ss;
 
-            if (!videoUrl) {
-                return bot.editMessageText("❌ <i>API থেকে কোনো ভিডিও লিংক পাওয়া যায়নি!</i>", {
-                    chat_id: chatId,
-                    message_id: loadingMsg.message_id,
-                    parse_mode: 'HTML'
-                });
-            }
-
-            // Mini App Webview Button Setup
-            const replyMarkup = {
-                inline_keyboard: [
-                    [
-                        {
-                            text: "🚀 Open Mini App",
-                            web_app: { url: videoUrl }
-                        }
-                    ],
-                    [
-                        {
-                            text: "🌐 Direct Link",
-                            url: videoUrl
-                        }
+            if (videoUrl) {
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [{ text: "🚀 Open Mini App", web_app: { url: videoUrl } }],
+                        [{ text: "🌐 Direct Link", url: videoUrl }]
                     ]
-                ]
-            };
+                };
 
-            const captionText = 
+                const captionText = 
 `🇧🇩 <b><u>𝙱𝙰𝙽𝙶𝙻𝙰𝙳𝙴𝚂𝙷𝙸  𝚅𝙸𝙳𝙴𝙾</u></b>
 
 🔗 <b>𝙻𝚒𝚗𝚔:</b> <code>${videoUrl}</code>
 👑 <b>𝙾𝚯𝚗𝚎𝚛:</b>  <b><u>𝙹𝚘𝚢 𝙰𝚑𝚖𝚎𝚍</u></b>`;
 
-            // ১. যদি থাম্বনেইল/স্ক্রিনশট ছবি পাওয়া যায়
-            if (thumbnailUrl && typeof thumbnailUrl === 'string' && thumbnailUrl.startsWith('http')) {
-                try {
-                    await bot.sendPhoto(chatId, thumbnailUrl, {
-                        caption: captionText,
-                        parse_mode: 'HTML',
-                        reply_markup: replyMarkup,
-                        reply_to_message_id: msg.message_id
-                    });
-                    return await bot.deleteMessage(chatId, loadingMsg.message_id);
-                } catch (photoErr) {
-                    console.error('Photo send failed, falling back to video:', photoErr.message);
+                if (thumbnailUrl && typeof thumbnailUrl === 'string' && thumbnailUrl.startsWith('http')) {
+                    try {
+                        await bot.sendPhoto(chatId, thumbnailUrl, {
+                            caption: captionText,
+                            parse_mode: 'HTML',
+                            reply_markup: replyMarkup,
+                            reply_to_message_id: msg.message_id
+                        });
+                        return await bot.deleteMessage(chatId, loadingMsg.message_id);
+                    } catch (e) {}
                 }
+
+                await bot.sendVideo(chatId, videoUrl, {
+                    caption: captionText,
+                    parse_mode: 'HTML',
+                    reply_markup: replyMarkup,
+                    reply_to_message_id: msg.message_id
+                });
+
+                return await bot.deleteMessage(chatId, loadingMsg.message_id);
             }
-
-            // ২. স্ক্রিনশট না থাকলে বা ফটো পাঠাতে ব্যর্থ হলে সরাসরি ভিডিও পাঠানো
-            await bot.sendVideo(chatId, videoUrl, {
-                caption: captionText,
-                parse_mode: 'HTML',
-                reply_markup: replyMarkup,
-                reply_to_message_id: msg.message_id
-            });
-
-            await bot.deleteMessage(chatId, loadingMsg.message_id);
+            
+            throw new Error("Invalid Video URL");
 
         } catch (err) {
             console.error('BD Command Error:', err.message);
+
+            // API সার্ভার ডাউন থাকলেও যাতে মেসেজ ও প্লেয়ার বাটন সেন্ড করে (Safe Emergency Fallback)
+            const fallbackUrl = "http://nayan-primehub.vercel.app/bd";
             
-            // এরর হলে শুধু লিঙ্ক সহ মেসেজ সেন্ড করার সেফ অপশন
-            return bot.editMessageText("❌ <i>ভিডিও মিডিয়া লোড হতে সমস্যা হয়েছে। সরাসরি API সার্ভার সাড়া দিচ্ছে না।</i>", {
+            const emergencyMarkup = {
+                inline_keyboard: [
+                    [{ text: "🚀 Try Open Mini App", web_app: { url: fallbackUrl } }],
+                    [{ text: "🌐 Open In Browser", url: fallbackUrl }]
+                ]
+            };
+
+            const emergencyText = 
+`⚠️ <b><u>𝚂𝙴𝚁𝚅𝙴𝚁 𝙽𝙾𝚃𝙸𝙲𝙴</u></b>
+
+❌ <i>API সার্ভার স্লো বা সাড়া দিচ্ছে না!</i>
+👉 তবে আপনি নিচের বাটনে ক্লিক করে সরাসরি ওয়েবে ট্রাই করতে পারেন।
+
+👑 <b>𝙾𝚯𝚗𝚎𝚛:</b>  <b><u>𝙹𝚘𝚢 𝙰𝚑𝚖𝚎𝚍</u></b>`;
+
+            return bot.editMessageText(emergencyText, {
                 chat_id: chatId,
                 message_id: loadingMsg.message_id,
-                parse_mode: 'HTML'
+                parse_mode: 'HTML',
+                reply_markup: emergencyMarkup
             });
         }
     }
