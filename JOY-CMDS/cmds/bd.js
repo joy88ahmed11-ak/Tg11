@@ -3,11 +3,11 @@ const axios = require('axios');
 module.exports = {
     config: {
         name: "bd",
-        version: "2.0.0",
+        version: "2.1.0",
         role: 0,
         author: "Joy Ahmed",
         cooldown: 5,
-        description: "Send BD video with SS and Mini App Webview Button",
+        description: "Send BD video link with Mini App player and SS",
         usePrefix: true
     },
 
@@ -20,33 +20,34 @@ module.exports = {
         });
 
         try {
-            const response = await axios.get(apiUrl);
-            
-            // API Response Data Validation
-            const videoUrl = response.data.url || response.data.video || response.data.link;
-            const thumbnailUrl = response.data.cover || response.data.image || response.data.thumbnail || response.data.ss;
+            const response = await axios.get(apiUrl, { timeout: 10000 });
+            const data = response.data;
+
+            // API থেকে লিংক বের করা
+            const videoUrl = data.url || data.video || data.link || data.data;
+            const thumbnailUrl = data.cover || data.image || data.thumbnail || data.ss;
 
             if (!videoUrl) {
-                return bot.editMessageText("❌ <i>ভিডিও লিংক পাওয়া যায়নি!</i>", {
+                return bot.editMessageText("❌ <i>API থেকে কোনো ভিডিও লিংক পাওয়া যায়নি!</i>", {
                     chat_id: chatId,
                     message_id: loadingMsg.message_id,
                     parse_mode: 'HTML'
                 });
             }
 
-            // Mini App Web App Button Definition
+            // Mini App Webview Button Setup
             const replyMarkup = {
                 inline_keyboard: [
                     [
                         {
                             text: "🚀 Open Mini App",
-                            web_app: { url: videoUrl } // Mini app style open
+                            web_app: { url: videoUrl }
                         }
                     ],
                     [
                         {
                             text: "🌐 Direct Link",
-                            url: videoUrl // Fallback direct URL button
+                            url: videoUrl
                         }
                     ]
                 ]
@@ -58,30 +59,36 @@ module.exports = {
 🔗 <b>𝙻𝚒𝚗𝚔:</b> <code>${videoUrl}</code>
 👑 <b>𝙾𝚯𝚗𝚎𝚛:</b>  <b><u>𝙹𝚘𝚢 𝙰𝚑𝚖𝚎𝚍</u></b>`;
 
-            // যদি API থেকে স্ক্রিনশট/থম্বনেইল ইমেজ পাওয়া যায়, তাহলে ছবিসহ বাটন সেন্ড করবে
-            if (thumbnailUrl) {
-                await bot.sendPhoto(chatId, thumbnailUrl, {
-                    caption: captionText,
-                    parse_mode: 'HTML',
-                    reply_markup: replyMarkup,
-                    reply_to_message_id: msg.message_id
-                });
-            } else {
-                // ইমেজ না থাকলে সরাসরি ভিডিও দিয়ে সেন্ড করবে
-                await bot.sendVideo(chatId, videoUrl, {
-                    caption: captionText,
-                    parse_mode: 'HTML',
-                    reply_markup: replyMarkup,
-                    reply_to_message_id: msg.message_id
-                });
+            // ১. যদি থাম্বনেইল/স্ক্রিনশট ছবি পাওয়া যায়
+            if (thumbnailUrl && typeof thumbnailUrl === 'string' && thumbnailUrl.startsWith('http')) {
+                try {
+                    await bot.sendPhoto(chatId, thumbnailUrl, {
+                        caption: captionText,
+                        parse_mode: 'HTML',
+                        reply_markup: replyMarkup,
+                        reply_to_message_id: msg.message_id
+                    });
+                    return await bot.deleteMessage(chatId, loadingMsg.message_id);
+                } catch (photoErr) {
+                    console.error('Photo send failed, falling back to video:', photoErr.message);
+                }
             }
 
-            // লোডিং মেসেজ ডিলিট
+            // ২. স্ক্রিনশট না থাকলে বা ফটো পাঠাতে ব্যর্থ হলে সরাসরি ভিডিও পাঠানো
+            await bot.sendVideo(chatId, videoUrl, {
+                caption: captionText,
+                parse_mode: 'HTML',
+                reply_markup: replyMarkup,
+                reply_to_message_id: msg.message_id
+            });
+
             await bot.deleteMessage(chatId, loadingMsg.message_id);
 
         } catch (err) {
             console.error('BD Command Error:', err.message);
-            return bot.editMessageText("❌ <i>ভিডিও বা স্ক্রিনশট লোড করতে ব্যর্থ হয়েছে!</i>", {
+            
+            // এরর হলে শুধু লিঙ্ক সহ মেসেজ সেন্ড করার সেফ অপশন
+            return bot.editMessageText("❌ <i>ভিডিও মিডিয়া লোড হতে সমস্যা হয়েছে। সরাসরি API সার্ভার সাড়া দিচ্ছে না।</i>", {
                 chat_id: chatId,
                 message_id: loadingMsg.message_id,
                 parse_mode: 'HTML'
