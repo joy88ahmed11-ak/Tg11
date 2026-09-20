@@ -3,7 +3,7 @@ const axios = require('axios');
 module.exports = {
     config: {
         name: "set",
-        version: "1.0.0",
+        version: "1.0.1",
         role: 2, // 2 = Bot Owner Only (Joy Ahmed)
         author: "Joy Ahmed",
         cooldown: 3,
@@ -29,7 +29,7 @@ module.exports = {
             }
 
             if (!photoUrl) {
-                return bot.sendMessage(chatId, `⚠️ <i>দয়া করে কোনো ছবিতে রিপ্লাই দিন অথবা ছবির ইমেজ URL দিন!</i>\n📌 <b>Usage:</b> <code>${prefix}set pic <reply_to_photo></code>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+                return bot.sendMessage(chatId, `⚠️ <i>দয়া করে কোনো ছবিতে রিপ্লাই দিন অথবা ছবির ইমেজ URL দিন!</i>\n📌 <b>Usage:</b> <code>${prefix}set pic</code> (reply to photo)`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             }
 
             const loadingMsg = await bot.sendMessage(chatId, "⏳ <i>বটের প্রোফাইল পিকচার আপডেট করা হচ্ছে...</i>", { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
@@ -41,7 +41,7 @@ module.exports = {
                 // Set Bot Profile Photo using Telegram API
                 await bot.setMyProfilePhoto(response.data);
 
-                return bot.editMessageText("✅ <b><u>𝙱𝙾𝚃  𝙿𝚁𝙾𝙵𝙸𝙻𝙴  𝙿𝙷𝙾𝚃𝙾  𝚄𝙿𝙳𝙰𝚃𝙴𝙳</u></b>\n\n🎉 <i>বটের প্রোফাইল পিকচার সফলতা সাথে পরিবর্তন করা হয়েছে!</i>", {
+                return bot.editMessageText("✅ <b><u>BOT PROFILE PHOTO UPDATED</u></b>\n\n🎉 <i>বটের প্রোফাইল পিকচার সফলতার সাথে পরিবর্তন করা হয়েছে!</i>", {
                     chat_id: chatId,
                     message_id: loadingMsg.message_id,
                     parse_mode: 'HTML'
@@ -64,7 +64,7 @@ module.exports = {
 
             try {
                 await bot.setMyName({ name: value });
-                return bot.sendMessage(chatId, `✅ <b><u>𝙱𝙾𝚃  𝙽𝙰𝙼𝙴  𝚄𝙿𝙳𝙰𝚃𝙴𝙳</u></b>\n\n🏷️ <b>New Name:</b> <code>${value}</code>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+                return bot.sendMessage(chatId, `✅ <b><u>BOT NAME UPDATED</u></b>\n\n🏷️ <b>New Name:</b> <code>${value}</code>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             } catch (err) {
                 return bot.sendMessage(chatId, `❌ <i>নাম পরিবর্তন ব্যর্থ:</i> <code>${err.message}</code>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             }
@@ -78,7 +78,7 @@ module.exports = {
 
             try {
                 await bot.setMyShortDescription({ short_description: value });
-                return bot.sendMessage(chatId, `✅ <b><u>𝙱𝙾𝚃  𝙱𝙸𝙾  𝚄𝙿𝙳𝙰𝚃𝙴𝙳</u></b>\n\n📝 <b>New Bio:</b> <i>${value}</i>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+                return bot.sendMessage(chatId, `✅ <b><u>BOT BIO UPDATED</u></b>\n\n📝 <b>New Bio:</b> <i>${value}</i>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             } catch (err) {
                 return bot.sendMessage(chatId, `❌ <i>বায়ো পরিবর্তন ব্যর্থ:</i> <code>${err.message}</code>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             }
@@ -92,7 +92,7 @@ module.exports = {
 
             try {
                 await bot.setMyDescription({ description: value });
-                return bot.sendMessage(chatId, `✅ <b><u>𝙱𝙾𝚃  𝙳𝙴𝚂𝙲𝚁𝙸𝙿𝚃𝙸𝙾𝙽  𝚄𝙿𝙳𝙰𝚃𝙴𝙳</u></b>\n\n📄 <b>New Description:</b>\n<i>${value}</i>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+                return bot.sendMessage(chatId, `✅ <b><u>BOT DESCRIPTION UPDATED</u></b>\n\n📄 <b>New Description:</b>\n<i>${value}</i>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             } catch (err) {
                 return bot.sendMessage(chatId, `❌ <i>ডেসক্রিপশন পরিবর্তন ব্যর্থ:</i> <code>${err.message}</code>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             }
@@ -110,7 +110,7 @@ module.exports = {
                 ];
 
                 await bot.setMyCommands(commandsList);
-                return bot.sendMessage(chatId, `✅ <b><u>𝙱𝙾𝚃  𝙲𝙾𝙼𝙼𝙰𝙽𝙳𝚂  𝙻𝙸𝚂𝚃  𝚄𝙿𝙳𝙰𝚃𝙴𝙳</u></b>\n\n📜 <i>টেলিগ্রাম মেনু বাটনে কমান্ডসমূহ সেট করা হয়েছে!</i>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+                return bot.sendMessage(chatId, `✅ <b><u>BOT COMMANDS LIST UPDATED</u></b>\n\n📜 <i>টেলিগ্রাম মেনু বাটনে কমান্ডসমূহ সেট করা হয়েছে!</i>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             } catch (err) {
                 return bot.sendMessage(chatId, `❌ <i>কমান্ড মেনু আপলোড ব্যর্থ:</i> <code>${err.message}</code>`, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
             }
@@ -118,21 +118,21 @@ module.exports = {
 
         // ================= SETTINGS MENU GUIDE =================
         const usageText = 
-`⚙️ <b><u>𝙱𝙾𝚃  𝚂𝙴𝚃𝚃𝙸𝙽𝙶𝚂  𝙲𝙾𝙽𝚃𝚁𝙾𝙻</u></b>
+`⚙️ <b><u>BOT SETTINGS CONTROL</u></b>
 
-👑 <b>𝙰𝚍𝚖𝚒𝚗:</b> <b><u>𝙹𝚘𝚢 𝙰𝚑𝚖𝚎𝚍</u></b>
+👑 <b>Admin:</b> <b><u>Joy Ahmed</u></b>
 
 👉 <b>পিকচার আপডেট করতে:</b>
 • <code>${prefix}set pic</code> (যেকোনো ছবিতে রিপ্লাই করে লিখুন)
 
 👉 <b>নাম পরিবর্তন করতে:</b>
-• <code>${prefix}set name <New Bot Name></code>
+• <code>${prefix}set name Bot Name</code>
 
 👉 <b>বায়ো / Short Bio সেট করতে:</b>
-• <code>${prefix}set bio <Short Bio Text></code>
+• <code>${prefix}set bio Short Bio Text</code>
 
 👉 <b>বট ডেসক্রিপশন সেট করতে:</b>
-• <code>${prefix}set desc <Full Description Text></code>
+• <code>${prefix}set desc Full Description Text</code>
 
 👉 <b>টেলিগ্রাম মেনু কমান্ড সেট করতে:</b>
 • <code>${prefix}set cmds</code>`;
